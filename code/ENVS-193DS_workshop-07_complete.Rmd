@@ -1,14 +1,18 @@
 ---
-title: "Linear regression"
+title: "Untitled"
 author: "your name here"
-date: "insert date here"
-format:
-  html:
-    toc: true # use this to display a table of contents
-execute:
-  message: false # use this to make sure messages don't show up
-  warning: false # use this to make sure warnings don't show up
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
 ---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```
+
+
 
 # 1. Set up
 
