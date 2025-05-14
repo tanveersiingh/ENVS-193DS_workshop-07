@@ -1,0 +1,298 @@
+---
+title: "Linear regression"
+author: "your name here"
+date: "insert date here"
+format:
+  html:
+    toc: true # use this to display a table of contents
+execute:
+  message: false # use this to make sure messages don't show up
+  warning: false # use this to make sure warnings don't show up
+---
+
+# 1. Set up
+
+```{r libraries-and-data}
+library(tidyverse) # general use
+library(here) # file/folder organization
+library(readxl) # reading .xlsx files
+library(ggeffects) # generating model predictions
+library(gtsummary) # generating summary tables for models
+
+# abalone data from Hamilton et al. 2022
+abalone <- read_xlsx(here("data", "Abalone IMTA_growth and pH.xlsx"))
+
+# Sonadora temperature data from Alonzo, A. 2024
+sonadora <- read_csv(here("data", "Temp_SonadoraGradient_Daily.csv"))
+```
+
+# 2. Abalone example
+
+Data from Hamilton et al. 2022. "Integrated multi-trophic aquaculture mitigates the effects of ocean acidification: Seaweeds raise system pH and improve growth of juvenile abalone." https://doi.org/10.1016/j.aquaculture.2022.738571
+
+## a. Questions and hypotheses
+
+Question: How does pH predict abalone growth (measured in change in shell surface area per day, mm^-2^ d^-1^)?  
+
+H~0~: pH does not predict abalone growth (change in shell surface area per day, mm^-2^ d^-1^).
+
+H~A~: pH predicts abalone growth (change in shell surface area per day, mm^-2^ d^-1^).
+
+## b. Cleaning
+
+```{r abalone-data-cleaning}
+# creating clean data frame
+abalone_clean <- abalone |> # start with abalone object
+  # select columns of interest
+  select(mean_p_h, change_in_area_mm2_d_1_25) |> 
+  # rename columns
+  rename(mean_ph = mean_p_h, 
+         change_in_area = change_in_area_mm2_d_1_25) 
+```
+
+Don't forget to look at your data! Use `View(abalone_clean)` in the _Console_.
+
+## c. Exploratory data visualization
+
+```{r abalone-scatterplot}
+# base layer: ggplot
+ggplot(data = abalone_clean,
+       aes(x = mean_ph,
+           y = change_in_area)) +
+  # first layer: points representing abalones
+  geom_point(size = 4,
+             stroke = 1,
+             fill = "firebrick4",
+             shape = 21)
+```
+
+## d. Abalone model
+
+### Model fitting
+
+```{r abalone-model}
+abalone_model <- lm(
+  change_in_area ~ mean_ph, # formula: change in area as a function of pH
+  data = abalone_clean      # data frame: abalone_clean
+)
+```
+
+### Diagnostics
+
+```{r abalone-model-diagnostics}
+
+par(mfrow = c(2, 2))   # creating a 2x2 grid
+plot(abalone_model)    # plot diagnostic plots
+
+```
+
+### Model summary
+
+```{r abalone-model-summary}
+
+# more information about the model
+summary(abalone_model)
+
+```
+
+### Generating predictions
+
+```{r abalone-model-predictions}
+
+# creating a new object called abalone_preds
+abalone_preds <- ggpredict(
+  abalone_model,      # model object
+  terms = "mean_ph"   # predictor (in quotation marks)
+)
+
+# display the predictions
+abalone_preds
+
+# look at the column names (do this in the Console!!!)
+# colnames(abalone_preds)
+
+# look at the actual object (do this in the console!!!)
+# View(abalone_preds)
+
+
+# finding the model prediction at a specific value
+ggpredict(
+  abalone_model,      # model object
+  terms = "mean_ph[8]"   # predictor (in quotation marks) and predictor value in brackets
+)
+
+```
+
+### Visualizing model predictions and data
+
+```{r abalone-model-final-figure}
+
+# base layer: ggplot
+# using clean data frame
+ggplot(data = abalone_clean,
+       aes(x = mean_ph,
+           y = change_in_area)) +
+  # first layer: points representing abalones
+  geom_point(size = 4,
+             stroke = 1,
+             fill = "firebrick4",
+             shape = 21) +
+  # second layer: ribbon representing confidence interval
+  # using predictions data frame
+  geom_ribbon(data = abalone_preds,
+              aes(x = x,
+                  y = predicted,
+                  ymin = conf.low,
+                  ymax = conf.high),
+              alpha = 0.1) +
+  # third layer: line representing model predictions
+  # using predictions data frame
+  geom_line(data = abalone_preds,
+            aes(x = x,
+                y = predicted)) +
+  # axis labels
+  labs(x = "Mean pH", 
+       y = expression("Change in shell area ("*mm^{2}~d^-1*")"))
+```
+
+### Creating a table with model coefficience, 95% confidence intervals, and more
+
+```{r}
+# using function from gtsummary package
+tbl_regression(abalone_model) |> 
+  # turning table into a flextable (makes things easier to render to word or PDF)
+  as_flextable()
+```
+
+# 3. Sonadora temperature example
+
+Data from Ramirez, A. 2024. Sonadora elevational plots: long-term monitoring of air temperature ver 877108. Environmental Data Initiative. https://doi.org/10.6073/pasta/6b66eecae3092d8f2340b5132dec38ab (Accessed 2025-05-14).
+
+## a. Questions and hypotheses
+
+Question: Does elevation (in meters) predict temperature (in $^\circ^$C)?
+
+H~0~: Elevation (m) does not predict temperature ($^\circ^$C).
+
+H~A~: Elevation (m) predicts temperature ($^\circ^$C).
+
+## b. Cleaning and summarizing
+
+```{r temperature-cleaning}
+# creating new clean data frame
+sonadora_clean <- sonadora |> 
+  # clean column names
+  clean_names() |> 
+  # make the data frame longer
+  pivot_longer(cols = plot_250:plot_1000,
+               names_to = "plot_name",
+               values_to = "temp_c") |> 
+  # separate plot name from elevation
+  separate_wider_delim(cols = plot_name,
+                       delim = "_",
+                       names = c("plot", "elevation_m"),
+                       cols_remove = FALSE) |> 
+  # remove plot column
+  select(-plot) |> 
+  # make sure elevation is read as a number
+  mutate(elevation_m = as.numeric(elevation_m))
+
+# summarizing
+sonadora_sum <- sonadora_clean |> 
+  # group by plot and elevation
+  group_by(plot_name, elevation_m) |> 
+  # calculate mean temperature at each elevation
+  summarize(mean_temp_c = mean(temp_c, na.rm = TRUE)) |> 
+  # undo the group_by function
+  ungroup() |> 
+  # arrange in order of elevation
+  arrange(elevation_m)
+```
+
+## c. Exploratory data visualization
+
+```{r temperature-visualization}
+
+# base layer: ggplot
+ggplot(data = sonadora_sum, 
+       aes(x = elevation_m,
+           y = mean_temp_c)) +
+  # first layer: points representing temperature at each elevation
+  geom_point()
+
+```
+
+## d. Temperature model
+
+```{r temperature-model}
+
+# model
+temperature_model <- lm(
+  mean_temp_c ~ elevation_m, # formula: response ~ predictor
+  data = sonadora_sum # data frame
+  )
+
+```
+
+### Diagnostics
+
+```{r temperature-diagnostics}
+
+# diagnostics
+par(mfrow = c(2, 2))
+plot(temperature_model)
+
+```
+
+### Model summary
+
+```{r temperature-model-summary}
+
+summary(temperature_model)
+
+```
+
+
+### Generating predictions
+
+```{r temperature-model-predictions}
+
+# model predictions
+temperature_preds <- ggpredict(
+  temperature_model,      # model object
+  terms = "elevation_m"   # predictor (in quotation marks)
+)
+
+```
+
+### Visualizing model predictions
+
+```{r temperature-mode-prediction-visualization}
+
+# base layer
+ggplot(data = sonadora_sum, 
+       aes(x = elevation_m,
+           y = mean_temp_c)) +
+  # first layer: temperature at each elevation
+  geom_point() +
+  # 95% CI ribbon
+  # uses model prediction data frame
+  geom_ribbon(data = temperature_preds,
+              aes(x = x,
+                  y = predicted,
+                  ymin = conf.low,
+                  ymax = conf.high)) +
+  # model prediction line
+  # uses model prediction data frame
+  geom_line(data = temperature_preds,
+              aes(x = x,
+                  y = predicted))
+```
+
+### Creating a table with model coefficience, 95% confidence intervals, and more
+
+```{r temperature-model-table}
+tbl_regression(temperature_model) |> 
+  as_flextable()
+```
+
