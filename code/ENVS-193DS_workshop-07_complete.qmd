@@ -1,7 +1,7 @@
 ---
 title: "Linear regression"
-author: "your name here"
-date: "insert date here"
+author: "Tanveer Singh"
+date: "2025-05-15"
 format:
   html:
     toc: true # use this to display a table of contents
@@ -33,7 +33,7 @@ Data from Hamilton et al. 2022. "Integrated multi-trophic aquaculture mitigates 
 
 ## a. Questions and hypotheses
 
-Question: How does pH predict abalone growth (measured in change in shell surface area per day, mm^-2^ d^-1^)?  
+Question: How does pH predict abalone growth (measured in change in shell surface area per day, mm^-2^ d^-1^)?
 
 H~0~: pH does not predict abalone growth (change in shell surface area per day, mm^-2^ d^-1^).
 
@@ -53,7 +53,7 @@ abalone_clean <- abalone |> # start with abalone object
          change_in_area = change_in_area_mm2_d_1_25) 
 ```
 
-Don't forget to look at your data! Use `View(abalone_clean)` in the _Console_.
+Don't forget to look at your data! Use `View(abalone_clean)` in the *Console*.
 
 ## c. Exploratory data visualization
 
@@ -332,4 +332,3 @@ tbl_regression(temperature_model,
   # turning table into a flextable (makes things easier to render to word or PDF)
   as_flex_table()
 ```
-
